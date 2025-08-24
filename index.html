@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>awoo AI 程式碼分析與優化工具</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Marked.js 用於將 Markdown 轉為 HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 自定義樣式 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            --awoo-red: #c83c32;
+            --awoo-green: #46694c;
+        }
+        .editor-pane {
+            height: calc(100vh - 320px);
+            min-height: 400px;
+        }
+        #analysis-output, #optimized-code-output {
+            height: 350px;
+        }
+        /* 滾動條樣式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; /* slate-800 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; /* slate-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* slate-500 */
+        }
+        /* Prose 樣式覆蓋，讓 Markdown 輸出更好看 */
+        .prose code {
+            color: #e2e8f0; /* slate-200 */
+        }
+        .prose pre {
+            background-color: #0f172a; /* slate-900 */
+        }
+        .prose a {
+            color: var(--awoo-red);
+        }
+        .prose strong {
+            color: #f1f5f9; /* slate-100 */
+        }
+    </style>
+</head>
+<body class="bg-[#1a202c] text-slate-200 antialiased">
+
+    <div class="container mx-auto p-4 md:p-6">
+
+        <!-- 標題和說明 -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-100">
+                awoo AI 程式碼分析工具
+            </h1>
+            <p class="text-slate-400 mt-2">即時預覽程式碼，並取得 AI 的現代化、結構化、SEO 與無障礙優化建議。</p>
+        </header>
+
+        <!-- 編輯器和預覽區 -->
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-6 editor-pane">
+            <!-- 程式碼輸入區 -->
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col">
+                <label for="code-input" class="block text-sm font-medium text-slate-300 mb-2">HTML & CSS 原始碼</label>
+                <textarea id="code-input"
+                    class="w-full flex-grow p-3 bg-slate-900 border border-slate-700 rounded-lg resize-none focus:ring-2 focus:ring-[#c83c32] focus:border-[#c83c32] transition duration-200"
+                    placeholder="在這裡貼上您的 HTML 片段或完整文件...&#10;例如：&#10;<div class='card'>&#10;  <h2 style='color: blue;'>這是一個標題</h2>&#10;  <p>這是一些內容。</p>&#10;  <img src='image.jpg'>&#10;</div>"></textarea>
+                <!-- CMS 情境切換選項 -->
+                <div class="mt-3 flex items-center">
+                    <input id="cms-context-checkbox" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-700 text-[#c83c32] focus:ring-[#c83c32]">
+                    <label for="cms-context-checkbox" class="ml-2 block text-sm text-slate-300">此為 CMS 區塊程式碼 (將插入 &lt;body&gt; 中)</label>
+                </div>
+            </div>
+            <!-- 即時預覽區 -->
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 flex flex-col">
+                <label for="preview-output" class="block text-sm font-medium text-slate-300 mb-2">即時預覽</label>
+                <iframe id="preview-output" class="w-full flex-grow bg-white border border-slate-700 rounded-lg" title="Live Preview"></iframe>
+            </div>
+        </main>
+
+        <!-- AI 分析按鈕 -->
+        <div class="flex items-center justify-center space-x-4 my-8">
+            <button id="analyze-btn" class="bg-[#c83c32] hover:bg-opacity-90 text-white font-bold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105 shadow-lg shadow-red-500/30 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                <span>✨ AI 分析與優化</span>
+            </button>
+            <button id="accessibility-btn" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105 shadow-lg shadow-slate-500/20 flex items-center justify-center">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                <span>✨ AI 無障礙檢測</span>
+            </button>
+        </div>
+        
+        <!-- Loading Spinner (共用) -->
+        <div id="loading-spinner" class="text-center my-6 hidden">
+             <svg class="animate-spin mx-auto h-8 w-8 text-[#c83c32]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+             </svg>
+             <p class="mt-2 text-slate-400">AI 正在分析中，請稍候...</p>
+        </div>
+
+
+        <!-- AI 分析結果區 -->
+        <section id="result-section" class="hidden">
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 md:p-6">
+                <!-- Tabs -->
+                <div class="border-b border-slate-600">
+                    <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button id="tab-analysis" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm border-[#c83c32] text-[#c83c32]">
+                            分析建議
+                        </button>
+                        <button id="tab-code" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-400">
+                            優化後程式碼
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="mt-4">
+                    <div id="analysis-content">
+                        <div id="analysis-output" class="prose prose-invert max-w-none p-3 bg-slate-900 rounded-md overflow-auto text-slate-300">
+                            <p>點擊上方按鈕開始分析，結果將會顯示於此。</p>
+                        </div>
+                    </div>
+                    <div id="code-content" class="hidden relative">
+                        <button id="copy-btn" class="absolute top-3 right-3 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-1 px-2 rounded-md transition duration-200 z-10">複製</button>
+                        <textarea id="optimized-code-output" readonly
+                            class="w-full h-full p-3 bg-slate-900 border-slate-700 rounded-md resize-none focus:ring-2 focus:ring-[#c83c32] focus:border-[#c83c32] transition duration-200"></textarea>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ✨ awoo Footer -->
+    <footer class="text-center text-xs text-slate-500 py-8 px-4">
+        <div class="flex items-center justify-center space-x-2">
+            <span>Powered by</span>
+            <a href="https://awoo.ai" target="_blank" class="inline-flex items-center transition-opacity hover:opacity-80">
+                <img src="https://lh3.googleusercontent.com/pw/AP1GczMZZWr30_dY1Ke-Bi8Y5xkmHCR6LbpulIszDS4CBY-83hv8qlFlMUYq0BIpRHWnb-ECK73QEhMme3wZrk8MBJFjJ2AYBa13o6MtY0i6yliFbayXMCTZZ5f0kLXkpqh1nv0HMPKvDTGyUN8a_OQhNpkh6A=w451-h159-s-no-gm?authuser=0" alt="awoo 阿物科技官網" class="h-6 w-auto">
+            </a>
+            <span class="text-slate-600">|</span>
+            <a href="https://pse.is/82rcn9" target="_blank" class="text-base font-semibold text-slate-400 underline underline-offset-2 hover:text-[#c83c32] transition-colors">蔡阿達</a>
+            <span class="text-slate-600">|</span>
+            <span>Crafted with Precision and Innovation</span>
+        </div>
+    </footer>
+
+
+    <script>
+        // 獲取 DOM 元素
+        const codeInput = document.getElementById('code-input');
+        const previewOutput = document.getElementById('preview-output');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const accessibilityBtn = document.getElementById('accessibility-btn');
+        const resultSection = document.getElementById('result-section');
+        const analysisOutput = document.getElementById('analysis-output');
+        const optimizedCodeOutput = document.getElementById('optimized-code-output');
+        const copyBtn = document.getElementById('copy-btn');
+        const cmsContextCheckbox = document.getElementById('cms-context-checkbox');
+        
+        const tabAnalysis = document.getElementById('tab-analysis');
+        const tabCode = document.getElementById('tab-code');
+        const analysisContent = document.getElementById('analysis-content');
+        const codeContent = document.getElementById('code-content');
+
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // 即時更新預覽
+        codeInput.addEventListener('input', updatePreview);
+
+        function updatePreview() {
+            const code = codeInput.value;
+            previewOutput.srcdoc = code;
+        }
+
+        // 切換 Tabs
+        tabAnalysis.addEventListener('click', () => {
+            analysisContent.classList.remove('hidden');
+            codeContent.classList.add('hidden');
+            tabAnalysis.classList.add('border-[#c83c32]', 'text-[#c83c32]');
+            tabAnalysis.classList.remove('border-transparent', 'text-slate-400');
+            tabCode.classList.add('border-transparent', 'text-slate-400');
+            tabCode.classList.remove('border-[#c83c32]', 'text-[#c83c32]');
+        });
+
+        tabCode.addEventListener('click', () => {
+            codeContent.classList.remove('hidden');
+            analysisContent.classList.add('hidden');
+            tabCode.classList.add('border-[#c83c32]', 'text-[#c83c32]');
+            tabCode.classList.remove('border-transparent', 'text-slate-400');
+            tabAnalysis.classList.add('border-transparent', 'text-slate-400');
+            tabAnalysis.classList.remove('border-[#c83c32]', 'text-[#c83c32]');
+        });
+
+        // 複製程式碼
+        copyBtn.addEventListener('click', () => {
+            optimizedCodeOutput.select();
+            document.execCommand('copy');
+            copyBtn.textContent = '已複製!';
+            setTimeout(() => {
+                copyBtn.textContent = '複製';
+            }, 2000);
+        });
+
+        // 綁定按鈕事件
+        analyzeBtn.addEventListener('click', () => performAnalysis('optimize'));
+        accessibilityBtn.addEventListener('click', () => performAnalysis('accessibility'));
+
+        async function performAnalysis(analysisType) {
+            const userCode = codeInput.value;
+            if (!userCode.trim()) {
+                resultSection.classList.remove('hidden');
+                analysisOutput.innerHTML = '<p class="text-yellow-400">請先在左側輸入框貼上您的程式碼。</p>';
+                return;
+            }
+
+            setLoading(true);
+            resultSection.classList.remove('hidden');
+            analysisOutput.innerHTML = '';
+            optimizedCodeOutput.value = '';
+
+            try {
+                const isCmsContext = cmsContextCheckbox.checked;
+                let prompt = '';
+                if (analysisType === 'optimize') {
+                    prompt = getOptimizePrompt(userCode, isCmsContext);
+                } else if (analysisType === 'accessibility') {
+                    prompt = getAccessibilityPrompt(userCode, isCmsContext);
+                }
+
+                const result = await callGemini(prompt);
+
+                analysisOutput.innerHTML = marked.parse(result.analysis);
+                optimizedCodeOutput.value = result.optimizedCode;
+                
+                tabAnalysis.click();
+
+            } catch (error) {
+                // ✨ 修正：強化錯誤處理與提示
+                console.error('Error during AI analysis:', error);
+                let errorMessage = `<p class="text-red-400 font-semibold">分析時發生錯誤</p>`;
+
+                if (error.status === 401) {
+                    errorMessage += `<p class="text-yellow-300 mt-2">這是一個驗證錯誤 (401 Unauthorized)。</p>
+                                     <p class="text-slate-400 mt-1">這通常表示 API 金鑰無效或遺失。在這個環境中，API 金鑰應該是自動提供的。請嘗試以下步驟：</p>
+                                     <ul class="list-disc list-inside text-slate-400 mt-2 space-y-1">
+                                         <li><b>重新整理頁面</b>，然後再次嘗試分析。</li>
+                                         <li>如果問題持續，這可能是平台暫時性的問題，請稍後再試。</li>
+                                     </ul>`;
+                } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+                     errorMessage += `<p class="text-yellow-300 mt-2">網路連線錯誤。</p>
+                                      <p class="text-slate-400 mt-1">無法連接到 AI 服務。請檢查您的網路連線，或可能是服務暫時無法使用。</p>`;
+                }
+                else {
+                    errorMessage += `<p class="text-slate-400 mt-2">發生了未預期的錯誤，請稍後再試。</p>
+                                     <p class="text-gray-500 text-sm mt-2">錯誤詳情: ${error.message}</p>`;
+                }
+                analysisOutput.innerHTML = errorMessage;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function getContextualPreamble(isCmsContext) {
+            if (!isCmsContext) return '';
+            return `
+                **重要前提：** 使用者提供的這段程式碼是一個**片段 (fragment)**，它將會被插入到一個現有的 CMS (如 WordPress) 頁面的 \`<body>\` 標籤內。因此，你的分析和優化建議**不應該**添加多餘的 \`<html>\`, \`<head>\`, 或 \`<body>\` 標籤，除非它們原本就存在於輸入中。請專注於優化和重構所提供的程式碼片段本身。
+            `;
+        }
+
+        function getOptimizePrompt(userCode, isCmsContext) {
+            const preamble = getContextualPreamble(isCmsContext);
+            return `
+                你是一位專業的頂尖前端開發者與 SEO 專家。
+                ${preamble}
+                請分析以下提供的 HTML 與 CSS 程式碼。
+                程式碼:
+                \`\`\`html
+                ${userCode}
+                \`\`\`
+                請根據以下四個要點進行分析，並以 Markdown 格式提供你的分析報告：
+                1.  **現代化標準檢視 (HTML5/CSS3):** 程式碼是否使用了語意化的 HTML5 標籤？CSS 是否採用了現代化的技術？提出具體的改進建議。
+                2.  **AI 可讀性與結構化資料 (Schema.org):** 程式碼是否包含 Schema.org 的結構化資料？如果沒有，請建議最適合的 Schema 類型並提供一個簡單的 JSON-LD 實作範例。
+                3.  **SEO 與程式碼優化:** 是否存在重複或冗餘的程式碼？是否有可以精簡的 CSS 規則？說明改動對 SEO 和效能的好處。
+                4.  **提供優化後的完整程式碼:** 基於以上所有分析，提供一份重構和優化後的完整 HTML/CSS 程式碼。
+                你的最終輸出必須是一個 JSON 物件，包含兩個鍵： "analysis" (Markdown 格式的分析報告) 和 "optimizedCode" (優化後的完整程式碼)。
+            `;
+        }
+
+        function getAccessibilityPrompt(userCode, isCmsContext) {
+            const preamble = getContextualPreamble(isCmsContext);
+            return `
+                你是一位頂尖的網頁無障礙（Accessibility, a11y）專家，精通 WCAG 2.1 標準。
+                ${preamble}
+                請嚴格檢視以下提供的 HTML 程式碼，並提供一份詳盡的無障礙分析報告。
+                程式碼:
+                \`\`\`html
+                ${userCode}
+                \`\`\`
+                請根據以下要點進行分析，並以 Markdown 格式提供你的分析報告：
+                1.  **圖片與媒體 (Images and Media):** \`<img>\` 標籤是否都有具意義的 \`alt\` 屬性？對於裝飾性圖片，\`alt\` 是否為空 (\`alt=""\`)？
+                2.  **語意化結構 (Semantic Structure):** 是否正確使用標題層級 (\`<h1>\`-\`<h6>\`)？是否使用地標元素？列表是否使用正確標籤？
+                3.  **表單與互動性 (Forms and Interactivity):** 所有表單輸入是否都有對應的 \`<label>\`？按鈕和連結的文字是否清晰描述其功能？
+                4.  **色彩對比提醒 (Color Contrast):** 根據程式碼中的顏色定義，提醒使用者需要注意文字與背景的色彩對比度。
+                5.  **提供修復後的程式碼:** 基於以上所有分析，提供一份修復了無障礙問題後的完整 HTML 程式碼。
+                你的最終輸出必須是一個 JSON 物件，包含兩個鍵： "analysis" (Markdown 格式的無障礙分析報告) 和 "optimizedCode" (修復了無障礙問題的程式碼)。
+            `;
+        }
+        
+        function setLoading(isLoading) {
+            analyzeBtn.disabled = isLoading;
+            accessibilityBtn.disabled = isLoading;
+            if (isLoading) {
+                loadingSpinner.classList.remove('hidden');
+                resultSection.classList.add('hidden');
+            } else {
+                loadingSpinner.classList.add('hidden');
+                resultSection.classList.remove('hidden');
+            }
+        }
+
+        // ✨ 修正：強化 API 呼叫的錯誤處理
+        async function callGemini(prompt) {
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "analysis": { "type": "STRING" },
+                            "optimizedCode": { "type": "STRING" }
+                        },
+                        required: ["analysis", "optimizedCode"]
+                    }
+                }
+            };
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    const err = new Error(`API請求失敗: ${response.status}`);
+                    err.status = response.status;
+                    err.body = errorBody;
+                    throw err;
+                }
+            
+                const result = await response.json();
+            
+                if (result.candidates?.[0]?.content?.parts?.[0]) {
+                    const jsonText = result.candidates[0].content.parts[0].text;
+                    try {
+                        const cleanedJsonText = jsonText.replace(/^```json\s*|```$/g, '');
+                        return JSON.parse(cleanedJsonText);
+                    } catch (parseError) {
+                        console.error("Failed to parse JSON response:", jsonText);
+                        throw new Error("無法解析來自 AI 的回應。");
+                    }
+                } else {
+                    console.error("Unexpected API response structure:", result);
+                    throw new Error("收到了來自 AI 的無效回應格式。");
+                }
+            } catch (error) {
+                console.error("Error during API call:", error);
+                throw error;
+            }
+        }
+
+        // 初始化預覽
+        updatePreview();
+    </script>
+</body>
+</html>
