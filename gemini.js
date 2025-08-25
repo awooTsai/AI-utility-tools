@@ -1,7 +1,10 @@
+import fetch from 'node-fetch';
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "方法不支援" });
+    return res.status(405).json({ error: "僅支援 POST 請求" });
   }
+
   try {
     const { prompt } = req.body;
     if (!prompt) {
@@ -24,20 +27,21 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(500).json({
-        error: data.error?.message || "API 請求失敗",
+      return res.status(response.status).json({
+        error: data.error?.message || "API 錯誤",
         details: data,
         status: response.status,
       });
     }
 
     return res.status(200).json({
-      result: data.candidates?.[0]?.content?.parts?.[0]?.text || "",
+      result: data.candidates?.?.content?.parts?.?.text || "",
     });
   } catch (error) {
     return res.status(500).json({
-      error: error.message || "伺服器發生錯誤",
+      error: error.message || "伺服器內部錯誤",
       stack: error.stack,
+      name: error.name,
     });
   }
 }
