@@ -28,20 +28,18 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       return res.status(response.status).json({
-        error: data.error?.message || "API 錯誤",
+        error: data.error?.message || "API 請求失敗",
         details: data,
-        status: response.status,
       });
     }
 
     return res.status(200).json({
-      result: data.candidates?.?.content?.parts?.?.text || "",
+      result: data.candidates?.[0]?.content?.parts?.[0]?.text || "",
     });
   } catch (error) {
     return res.status(500).json({
       error: error.message || "伺服器內部錯誤",
       stack: error.stack,
-      name: error.name,
     });
   }
 }
