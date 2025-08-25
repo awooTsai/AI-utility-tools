@@ -71,10 +71,11 @@ module.exports = async (req, res) => {
     return res.status(200).json({ result: resultText });
 
   } catch (error) {
-    return res.status(500).json({
-      error: "伺服器內部錯誤",
-      details: error.message,
-      stack: error.stack,
-    });
-  }
+  console.error("❌ 伺服器異常:", error);
+  return res.status(500).json({
+    error: error.message || "伺服器發生錯誤",
+    stack: error.stack,
+    name: error.name,
+  });
+}
 };
