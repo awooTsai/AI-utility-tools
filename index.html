@@ -111,7 +111,7 @@
 
 
     <script>
-        // DOM 元素獲取 (省略，與之前版本相同)
+        // DOM 元素獲取
         const codeInput = document.getElementById('code-input');
         const previewOutput = document.getElementById('preview-output');
         const analyzeBtn = document.getElementById('analyze-btn');
@@ -127,7 +127,7 @@
         const codeContent = document.getElementById('code-content');
         const loadingSpinner = document.getElementById('loading-spinner');
 
-        // UI互動函式 (省略，與之前版本相同)
+        // UI 互動函式
         codeInput.addEventListener('input', () => previewOutput.srcdoc = codeInput.value);
         tabAnalysis.addEventListener('click', () => {
             analysisContent.classList.remove('hidden'); codeContent.classList.add('hidden');
@@ -177,7 +177,8 @@
                     prompt = getAccessibilityPrompt(userCode, isCmsContext);
                 }
                 
-                const result = await callOpenAI(prompt);
+                // ✨ 核心修改：呼叫後端 API
+                const result = await callBackendAPI(prompt);
 
                 analysisOutput.innerHTML = marked.parse(result.analysis);
                 optimizedCodeOutput.value = result.optimizedCode;
@@ -190,10 +191,10 @@
             }
         }
 
-        // Prompt 生成函式 (省略，與之前版本相同)
+        // Prompt 生成函式
         function getContextualPreamble(isCmsContext) {
             if (!isCmsContext) return '';
-            return `**重要前提：** 使用者提供的這段程式碼是一個**片段 (fragment)**...`; // 內容不變
+            return `**重要前提：** 使用者提供的這段程式碼是一個**片段 (fragment)**，它將會被插入到一個現有的 CMS (如 WordPress) 頁面的 \`<body>\` 標籤內。因此，你的分析和優化建議**不應該**添加多餘的 \`<html>\`, \`<head>\`, 或 \`<body>\` 標籤，除非它們原本就存在於輸入中。請專注於優化和重構所提供的程式碼片段本身。`;
         }
         function getOptimizePrompt(userCode, isCmsContext) {
             const preamble = getContextualPreamble(isCmsContext);
@@ -204,57 +205,47 @@
             return `你是一位頂尖的網頁無障礙（Accessibility, a11y）專家。你的最終輸出必須是一個 JSON 物件，包含兩個鍵： "analysis" (Markdown 格式的無障礙分析報告) 和 "optimizedCode" (修復了無障礙問題的程式碼)。\n${preamble}\n程式碼:\n\`\`\`html\n${userCode}\n\`\`\`\n`;
         }
 
-        // ✨ ===============================================================
-        // ✨ 核心修改：使用 OpenAI API 的函式
-        // ✨ ===============================================================
-
-        // 警告：將 API 金鑰直接放在前端程式碼中會有安全風險，僅供個人測試使用。
-        // ✨ 修正：請將 "sk-..." 替換成您從 OpenAI 取得的【真實】API 金鑰。
-        const OPENAI_API_KEY = "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";
-
-        async function callOpenAI(prompt) {
-            const apiUrl = 'https://api.openai.com/v1/chat/completions';
-
-            if (OPENAI_API_KEY === "請在這裡貼上您全新的 OpenAI API 金鑰 (sk-...)") {
-                throw new Error("尚未設定 OpenAI API 金鑰。請在 index.html 的 OPENAI_API_KEY 變數中填入您的金鑰。");
-            }
+        // ===================================================================
+        // ✨ 核心修改：呼叫我們自己的 Vercel 後端
+        // ===================================================================
+        async function callBackendAPI(prompt) {
+            const apiUrl = '/api/analyze'; // API URL 現在是我們自己的後端路徑
 
             try {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${OPENAI_API_KEY}`
                     },
                     body: JSON.stringify({
-                        model: "gpt-3.5-turbo-1106", // ✨ 修正：使用支援 JSON 模式的模型
-                        messages: [{ role: "user", content: prompt }],
-                        // ✨ 修正：強制 OpenAI API 回傳 JSON 格式
-                        response_format: { type: "json_object" }
+                        // 我們只傳送 prompt，模型等設定由後端處理
+                        prompt: prompt
                     }),
                 });
 
                 const result = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(result.error?.message || `API 請求失敗，狀態碼: ${response.status}`);
+                    // 如果後端回傳錯誤，顯示後端提供的錯誤訊息
+                    throw new Error(result.error?.message || `請求失敗，狀態碼: ${response.status}`);
                 }
                 
-                if (result && result.choices && result.choices[0].message.content) {
+                // 後端會直接回傳 OpenAI 的成功結果，我們從中解析
+                if (result.choices && result.choices[0].message.content) {
                     const jsonText = result.choices[0].message.content;
                     try {
-                        // 因為我們已經強制 API 回傳 JSON，所以可以直接解析
+                        // 因為已強制 API 回傳 JSON，所以可以直接解析
                         return JSON.parse(jsonText);
                     } catch (parseError) {
                         console.error("無法解析來自 AI 的內部 JSON 回應:", jsonText);
-                        throw new Error("AI 回應的格式不是有效的 JSON，請檢查 Prompt 或稍後再試。");
+                        throw new Error("AI 回應的格式不是有效的 JSON。");
                     }
                 } else {
                      throw new Error("收到了來自 AI 的無效回應格式。");
                 }
 
             } catch (error) {
-                console.error("前端呼叫 API 時發生錯誤:", error);
+                console.error("前端呼叫後端 API 時發生錯誤:", error);
                 throw error;
             }
         }
